@@ -137,12 +137,139 @@ export const listFeedbacks = async (request: Request, response: Response) => {
             }
         )
     } catch (error: any) {
-        console.error("Submit Feedback Error:", error);
+        console.error("List Feedbacks Error:", error);
 
         return response.status(500).json({
-            message: "An error occurred while submitting feedback.",
+            message: "An error occurred while listing feedbacks.",
             error: true,
             success: false,
         });
     }
+}
+
+//feedback get by id
+export const getFeedbackById = async (request: Request, response: Response) => {
+    try {
+        const { id } = request.params;
+
+        if(!id) {
+            return response.status(400).json({
+                message: "Feedback ID is required.",
+                error: true,
+                success: false,
+            });
+        }
+
+        const feedback = await Feedback.findById(id);
+        if(!feedback) {
+            return response.status(404).json({
+                message: "Feedback not found.",
+                error: true,
+                success: false,
+            });
+        }
+
+        return response.status(200).json({
+            message: "Feedback retrieved successfully.",
+            error: false,
+            success: true,
+            data: feedback,
+        });
+
+    } catch (error:any) {
+        console.error("Get Feedback By ID Error:", error);
+
+        return response.status(500).json({
+            message: "An error occurred while retrieving feedback.",
+            error: true,
+            success: false,
+        });
+    }
+}
+
+//update feedback status by id
+export const updateFeedbackStatusById = async (request: Request, response: Response) => {
+    try {
+        const { id } = request.params;
+        const { status } = request.body;
+
+        if(!id) {
+            return response.status(400).json({
+                message: "Feedback ID is required.",
+                error: true,
+                success: false,
+            });
+        }
+
+        const validStatuses = ["New", "In Review", "Resolved"];
+        if (!status || !validStatuses.includes(status)) {
+            return response.status(400).json({
+                message: "Invalid status.",
+                error: true,
+                success: false,
+            });
+        }
+
+        const feedback = await Feedback.findByIdAndUpdate(
+            id,
+            { status },
+            { new: true }
+        );
+        if(!feedback) {
+            return response.status(404).json({
+                message: "Feedback not found.",
+                error: true,
+                success: false,
+            });
+        }
+        
+    } catch (error:any) {
+        console.error("Update Feedback Status Error:", error);
+
+        return response.status(500).json({
+            message: "An error occurred while updating feedback status.",
+            error: true,
+            success: false,
+        });
+        
+    }
+}
+
+//delete feedback by id
+export const deleteFeedbackById = async (request: Request, response: Response) => {
+    try {
+        const { id } = request.params;
+
+        if(!id) {
+            return response.status(400).json({
+                message: "Feedback ID is required.",
+                error: true,
+                success: false,
+            });
+        }
+
+        const feedback = await Feedback.findByIdAndDelete(id);
+        if(!feedback) {
+            return response.status(404).json({
+                message: "Feedback not found.",
+                error: true,
+                success: false,
+            });
+        }
+        return response.status(200).json({
+            message: "Feedback deleted successfully.",
+            error: false,
+            success: true,
+        });
+        
+    } catch (error:any) {
+        console.error("Delete Feedback Error:", error);
+
+        return response.status(500).json({
+            message: "An error occurred while deleting feedback.",
+            error: true,
+            success: false,
+        });
+    }
+
 }
