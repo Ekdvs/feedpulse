@@ -97,3 +97,52 @@ export const submitFeedback = async (request: Request, response: Response) => {
         });
     }
 };
+
+//list feedbacks filtering and pagination and search
+export const listFeedbacks = async (request: Request, response: Response) => {
+    try {
+        const { status, category, keyword, page = 1, limit = 10 ,sortBy ="createdAt",order = "desc"} = request.query;
+
+        const query: any = {};
+        if(category) query.category = category;
+        if(status) query.status = status;
+        if(keyword) {
+            query.$or = [
+                { title: { $regex: keyword, $options: "i" } },
+                { ai_summary: { $regex: keyword, $options: "i" } }
+            ];
+        }
+
+        const feedbacks = await Feedback.find(query)
+            .sort({ [sortBy as string]: order === "asc" ? 1 : -1 })
+            .skip((+page - 1) * +limit)
+            .limit(+limit);
+
+        const total = await Feedback.countDocuments(query);
+
+        return response.status(200).json(
+            {
+                message: "Feedbacks retrieved successfully",
+                error: false,
+                success: true,
+                data: {
+                    feedbacks,
+                    pagination: { 
+                        total, 
+                        page: +page, 
+                        limit: +limit, 
+                        pages: Math.ceil(total / (+limit)) 
+                    },
+                }
+            }
+        )
+    } catch (error: any) {
+        console.error("Submit Feedback Error:", error);
+
+        return response.status(500).json({
+            message: "An error occurred while submitting feedback.",
+            error: true,
+            success: false,
+        });
+    }
+}
