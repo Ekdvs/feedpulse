@@ -5,4 +5,5 @@ const authRouter = express.Router();
 
 authRouter.post("/login",adminLogin )
 
+
 export default authRouter;

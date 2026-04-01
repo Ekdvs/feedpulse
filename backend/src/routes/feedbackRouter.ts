@@ -1,10 +1,11 @@
 import express from "express";
-import { deleteFeedbackById, getFeedbackById, getFeedbackSummary, listFeedbacks, retriggerAIById, submitFeedback, updateFeedbackStatusById } from "../controllers/feedbackController";
+import { deleteFeedbackById, getFeedbackById, getFeedbackSummary, getWeeklySummary, listFeedbacks, retriggerAIById, submitFeedback, updateFeedbackStatusById } from "../controllers/feedbackController";
 import { adminAuth } from "../middleware/admin";
 
 const feedbackRouter = express.Router();
 
 feedbackRouter.get('/summary',adminAuth,getFeedbackSummary)
+feedbackRouter.get('/weekly-summary',adminAuth,getWeeklySummary)
 
 feedbackRouter.post('/',submitFeedback);
 feedbackRouter.get('/',adminAuth,listFeedbacks);
