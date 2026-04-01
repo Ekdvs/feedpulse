@@ -213,8 +213,10 @@ export const updateFeedbackStatusById = async (request: Request, response: Respo
         const feedback = await Feedback.findByIdAndUpdate(
             id,
             { status },
-            { new: true }
+            { returnDocument: "after" }
+            
         );
+        
         if(!feedback) {
             return response.status(404).json({
                 message: "Feedback not found.",
@@ -222,6 +224,12 @@ export const updateFeedbackStatusById = async (request: Request, response: Respo
                 success: false,
             });
         }
+        return response.status(200).json({
+            message: "Feedback status updated successfully.",
+            error: false,
+            success: true,
+            data: feedback,
+        });
         
     } catch (error:any) {
         console.error("Update Feedback Status Error:", error);
@@ -272,4 +280,110 @@ export const deleteFeedbackById = async (request: Request, response: Response) =
         });
     }
 
+}
+
+//get feedback summary
+export const getFeedbackSummary = async (request: Request, response: Response) => {
+    try {
+        const totalFeedbacks = await Feedback.countDocuments();
+        const openItems = await Feedback.countDocuments({ status: { $in: ["New", "In Review"] } });
+        const colsedItems = await Feedback.countDocuments({ status: "Resolved" });
+        const avgPriorityAgg = await Feedback.aggregate([
+            { $match: { ai_processed: true } },
+            { $group: { _id: null, avgPriority: { $avg: "$ai_priority" } } }
+        ]);
+        const avgPriority = avgPriorityAgg[0]?.avgPriority || 0;
+
+        //most common tags
+        const tagsAgg = await Feedback.aggregate([
+            { $unwind: "$ai_tags" },
+            { $group: { _id: "$ai_tags", count: { $sum: 1 } } },
+            { $sort: { count: -1 } },
+            { $limit: 1 }
+        ]);
+        const commonTags = tagsAgg.map((tag) => ({ tag: tag._id, count: tag.count }));
+
+        return response.status(200).json(
+            {
+                error:false,
+                success:true,
+                data:{
+                    totalFeedbacks,
+                    openItems,
+                    colsedItems,
+                    avgPriority,
+                    commonTags
+
+                }
+            }
+        )
+
+    } catch (error:any) {
+        console.error("Get Feedback Summary Error:", error);
+
+        return response.status(500).json({
+            message: "An error occurred while getting feedback summary.",
+            error: true,
+            success: false,
+        });
+        
+    }
+}
+
+//retrigger AI analysis for a feedback by id
+export const retriggerAIById = async (request: Request, response: Response) => {
+    try {
+        const { id } = request.params;
+
+        if(!id) {
+            return response.status(400).json({
+                message: "Feedback ID is required.",
+                error: true,
+                success: false,
+            });
+        }
+        const feedback = await Feedback.findById(id);
+        if(!feedback) {
+            return response.status(404).json({
+                message: "Feedback not found.",
+                error: true,
+                success: false,
+            });
+        }
+        const aiData = await analyzeFeedback(feedback.title, feedback.description);
+
+        if (aiData) {
+            feedback.ai_category = aiData.category;
+            feedback.ai_sentiment = aiData.sentiment;
+            feedback.ai_priority = aiData.priority_score;
+            feedback.ai_summary = aiData.summary;
+            feedback.ai_tags = aiData.tags;
+            feedback.ai_processed = true;
+            await feedback.save();
+
+            return response.status(200).json({
+                message: "AI analysis retriggered successfully.",
+                error: false,
+                success: true,
+                data: feedback,
+            });
+        }
+            else {
+                return response.status(400).json({
+                    message: "Failed to retrigger AI analysis.",
+                    error: true,
+                    success: false,
+                });
+            }
+
+    } catch (error:any) {
+        console.error("Retrigger AI Analysis Error:", error);
+
+        return response.status(500).json({
+            message: "An error occurred while retriggering AI analysis.",
+            error: true,
+            success: false,
+        });
+        
+    }
 }
