@@ -55,7 +55,7 @@ export const submitFeedback = async (request: Request, response: Response) => {
 
         // Run AI 
         const aiData = await analyzeFeedback(title, description);
-        
+
 
         if (aiData) {
             const updatedFeedback = await Feedback.findByIdAndUpdate(
@@ -68,7 +68,7 @@ export const submitFeedback = async (request: Request, response: Response) => {
                     ai_tags: aiData.tags,
                     ai_processed: true,
                 },
-                { returnDocument: "after" } 
+                { returnDocument: "after" }
             );
 
             return response.status(201).json({
@@ -102,12 +102,12 @@ export const submitFeedback = async (request: Request, response: Response) => {
 //list feedbacks filtering and pagination and search
 export const listFeedbacks = async (request: Request, response: Response) => {
     try {
-        const { status, category, keyword, page = 1, limit = 10 ,sortBy ="createdAt",order = "desc"} = request.query;
+        const { status, category, keyword, page = 1, limit = 10, sortBy = "createdAt", order = "desc" } = request.query;
 
         const query: any = {};
-        if(category) query.category = category;
-        if(status) query.status = status;
-        if(keyword) {
+        if (category) query.category = category;
+        if (status) query.status = status;
+        if (keyword) {
             query.$or = [
                 { title: { $regex: keyword, $options: "i" } },
                 { ai_summary: { $regex: keyword, $options: "i" } }
@@ -128,11 +128,11 @@ export const listFeedbacks = async (request: Request, response: Response) => {
                 success: true,
                 data: {
                     feedbacks,
-                    pagination: { 
-                        total, 
-                        page: +page, 
-                        limit: +limit, 
-                        pages: Math.ceil(total / (+limit)) 
+                    pagination: {
+                        total,
+                        page: +page,
+                        limit: +limit,
+                        pages: Math.ceil(total / (+limit))
                     },
                 }
             }
@@ -151,20 +151,20 @@ export const listFeedbacks = async (request: Request, response: Response) => {
 //feedback get by id
 export const getFeedbackById = async (request: Request, response: Response) => {
     try {
-        const id= request.params.id as string;
-        
+        const id = request.params.id as string;
 
-        if(!id || !mongoose.Types.ObjectId.isValid(id)) {
+
+        if (!id || !mongoose.Types.ObjectId.isValid(id)) {
             return response.status(400).json({
                 message: "Feedback ID is required.",
                 error: true,
                 success: false,
             });
         }
-        
+
 
         const feedback = await Feedback.findById(id);
-        if(!feedback) {
+        if (!feedback) {
             return response.status(404).json({
                 message: "Feedback not found.",
                 error: true,
@@ -179,7 +179,7 @@ export const getFeedbackById = async (request: Request, response: Response) => {
             data: feedback,
         });
 
-    } catch (error:any) {
+    } catch (error: any) {
         console.error("Get Feedback By ID Error:", error);
 
         return response.status(500).json({
@@ -193,17 +193,17 @@ export const getFeedbackById = async (request: Request, response: Response) => {
 //update feedback status by id
 export const updateFeedbackStatusById = async (request: Request, response: Response) => {
     try {
-        const  id  = request.params.id as string;
+        const id = request.params.id as string;
         const { status } = request.body;
 
-        if(!id || !mongoose.Types.ObjectId.isValid(id)) {
+        if (!id || !mongoose.Types.ObjectId.isValid(id)) {
             return response.status(400).json({
                 message: "Feedback ID is required.",
                 error: true,
                 success: false,
             });
         }
-        
+
 
         const validStatuses = ["New", "In Review", "Resolved"];
         if (!status || !validStatuses.includes(status)) {
@@ -218,10 +218,10 @@ export const updateFeedbackStatusById = async (request: Request, response: Respo
             id,
             { status },
             { returnDocument: "after" }
-            
+
         );
-        
-        if(!feedback) {
+
+        if (!feedback) {
             return response.status(404).json({
                 message: "Feedback not found.",
                 error: true,
@@ -234,8 +234,8 @@ export const updateFeedbackStatusById = async (request: Request, response: Respo
             success: true,
             data: feedback,
         });
-        
-    } catch (error:any) {
+
+    } catch (error: any) {
         console.error("Update Feedback Status Error:", error);
 
         return response.status(500).json({
@@ -243,16 +243,16 @@ export const updateFeedbackStatusById = async (request: Request, response: Respo
             error: true,
             success: false,
         });
-        
+
     }
 }
 
 //delete feedback by id
 export const deleteFeedbackById = async (request: Request, response: Response) => {
     try {
-        const  id  = request.params.id as string;
+        const id = request.params.id as string;
 
-        if(!id || !mongoose.Types.ObjectId.isValid(id)) {
+        if (!id || !mongoose.Types.ObjectId.isValid(id)) {
             return response.status(400).json({
                 message: "Feedback ID is required.",
                 error: true,
@@ -261,7 +261,7 @@ export const deleteFeedbackById = async (request: Request, response: Response) =
         }
 
         const feedback = await Feedback.findByIdAndDelete(id);
-        if(!feedback) {
+        if (!feedback) {
             return response.status(404).json({
                 message: "Feedback not found.",
                 error: true,
@@ -273,8 +273,8 @@ export const deleteFeedbackById = async (request: Request, response: Response) =
             error: false,
             success: true,
         });
-        
-    } catch (error:any) {
+
+    } catch (error: any) {
         console.error("Delete Feedback Error:", error);
 
         return response.status(500).json({
@@ -288,58 +288,85 @@ export const deleteFeedbackById = async (request: Request, response: Response) =
 
 //get feedback summary
 export const getFeedbackSummary = async (request: Request, response: Response) => {
-    try {
-        const totalFeedbacks = await Feedback.countDocuments();
-        const openItems = await Feedback.countDocuments({ status: { $in: ["New", "In Review"] } });
-        const colsedItems = await Feedback.countDocuments({ status: "Resolved" });
-        const avgPriorityAgg = await Feedback.aggregate([
-            { $match: { ai_processed: true } },
-            { $group: { _id: null, avgPriority: { $avg: "$ai_priority" } } }
-        ]);
-        const avgPriority = avgPriorityAgg[0]?.avgPriority || 0;
+  try {
+    
+    const totalFeedbacks = await Feedback.countDocuments();
+    const openItems = await Feedback.countDocuments({ status: { $in: ["New", "In Review"] } });
+    const closedItems = await Feedback.countDocuments({ status: "Resolved" });
 
-        //most common tags
-        const tagsAgg = await Feedback.aggregate([
-            { $unwind: "$ai_tags" },
-            { $group: { _id: "$ai_tags", count: { $sum: 1 } } },
-            { $sort: { count: -1 } },
-            { $limit: 1 }
-        ]);
-        const commonTags = tagsAgg.map((tag) => ({ tag: tag._id, count: tag.count }));
+    
+    const avgPriorityAgg = await Feedback.aggregate([
+      { $match: { ai_processed: true } },
+      { $group: { _id: null, avgPriority: { $avg: "$ai_priority" } } }
+    ]);
+    const avgPriority = avgPriorityAgg[0]?.avgPriority || 0;
 
-        return response.status(200).json(
-            {
-                error:false,
-                success:true,
-                data:{
-                    totalFeedbacks,
-                    openItems,
-                    colsedItems,
-                    avgPriority,
-                    commonTags
+    //  common tags
+    const tagsAgg = await Feedback.aggregate([
+      { $unwind: "$ai_tags" },
+      { $group: { _id: "$ai_tags", count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+      { $limit: 5 } // top 5 tags
+    ]);
+    const commonTags = tagsAgg.map(tag => ({ tag: tag._id, count: tag.count }));
 
-                }
-            }
-        )
+    // Sentiment breakdown
+    const sentimentAgg = await Feedback.aggregate([
+      { $group: { 
+          _id: "$ai_sentiment", 
+          count: { $sum: 1 } 
+        } 
+      }
+    ]);
+    const sentimentCounts: { [key: string]: number } = { Positive: 0, Neutral: 0, Negative: 0 };
+    sentimentAgg.forEach(item => {
+      if (item._id) sentimentCounts[item._id] = item.count;
+    });
 
-    } catch (error:any) {
-        console.error("Get Feedback Summary Error:", error);
+    return response.status(200).json({
+      success: true,
+      error: false,
+      message: "Feedback summary retrieved successfully.",
+      data: {
+        totalFeedbacks,
+        openItems,
+        closedItems,
+        avgPriority,
+        commonTags,          
+        sentimentCounts,     
+        chartData: {
+          openClosed: {
+            labels: ["Open", "Closed"],
+            values: [openItems, closedItems]
+          },
+          sentiments: {
+            labels: ["Positive", "Neutral", "Negative"],
+            values: [sentimentCounts.Positive, sentimentCounts.Neutral, sentimentCounts.Negative]
+          },
+          topTags: {
+            labels: commonTags.map(t => t.tag),
+            values: commonTags.map(t => t.count)
+          }
+        }
+      }
+    });
 
-        return response.status(500).json({
-            message: "An error occurred while getting feedback summary.",
-            error: true,
-            success: false,
-        });
-        
-    }
-}
+  } catch (error: any) {
+    console.error("Get Feedback Summary Error:", error);
+    return response.status(500).json({
+      success: false,
+      error: true,
+      message: "An error occurred while getting feedback summary."
+    });
+  }
+};
 
 //retrigger AI analysis for a feedback by id
 export const retriggerAIById = async (request: Request, response: Response) => {
     try {
-        const  id  = request.params.id as string;
+        const id = request.params.id as string;
 
-        if(!id || !mongoose.Types.ObjectId.isValid(id)) {
+        if (!id || !mongoose.Types.ObjectId.isValid(id)) {
             return response.status(400).json({
                 message: "Feedback ID is required.",
                 error: true,
@@ -347,7 +374,7 @@ export const retriggerAIById = async (request: Request, response: Response) => {
             });
         }
         const feedback = await Feedback.findById(id);
-        if(!feedback) {
+        if (!feedback) {
             return response.status(404).json({
                 message: "Feedback not found.",
                 error: true,
@@ -372,15 +399,15 @@ export const retriggerAIById = async (request: Request, response: Response) => {
                 data: feedback,
             });
         }
-            else {
-                return response.status(400).json({
-                    message: "Failed to retrigger AI analysis.",
-                    error: true,
-                    success: false,
-                });
-            }
+        else {
+            return response.status(400).json({
+                message: "Failed to retrigger AI analysis.",
+                error: true,
+                success: false,
+            });
+        }
 
-    } catch (error:any) {
+    } catch (error: any) {
         console.error("Retrigger AI Analysis Error:", error);
 
         return response.status(500).json({
@@ -388,6 +415,88 @@ export const retriggerAIById = async (request: Request, response: Response) => {
             error: true,
             success: false,
         });
-        
+
+    }
+}
+
+//get weekly summary of feedbacks for last 7 days
+export const getWeeklySummary = async (request: Request, response: Response) => {
+    try {
+
+        const today = new Date();
+        today.setHours(23, 59, 59, 999);
+        const lastWeek = new Date();
+        lastWeek.setDate(today.getDate() - 6);
+        lastWeek.setHours(0, 0, 0, 0);
+
+        const summary = await Feedback.aggregate([
+            {
+                $match: {
+                    createdAt: { $gte: lastWeek, $lte: today }
+                }
+            },
+            {
+                $group: {
+                    _id: {
+                        day: { $dayOfMonth: "$createdAt" },
+                        month: { $month: "$createdAt" },
+                        year: { $year: "$createdAt" }
+                    },
+                    count: { $sum: 1 },
+                    positive: {
+                        $sum: { $cond: [{ $eq: ["$ai_sentiment", "Positive"] }, 1, 0] }
+                    },
+                    negative: {
+                        $sum: { $cond: [{ $eq: ["$ai_sentiment", "Negative"] }, 1, 0] }
+                    },
+                    neutral: {
+                        $sum: { $cond: [{ $eq: ["$ai_sentiment", "Neutral"] }, 1, 0] }
+                    }
+                }
+            },
+            {
+                $sort: {
+                    "_id.year": 1,
+                    "_id.month": 1,
+                    "_id.day": 1
+                }
+            }
+        ]);
+
+        const totalFeedbacks = summary.reduce((acc, day) => acc + day.count, 0);
+        const positive = summary.reduce((acc, day) => acc + day.positive, 0);
+        const negative = summary.reduce((acc, day) => acc + day.negative, 0);
+        const neutral = summary.reduce((acc, day) => acc + day.neutral, 0);
+
+        return response.status(200).json({
+            message: "Weekly summary retrieved successfully.",
+            error: false,
+            success: true,
+            data: {
+                totalFeedbacks,
+                positive,
+                negative,
+                neutral,
+                summary,
+                dailyBreakdown: summary.map(day => ({
+                    date: `${day._id.year}-${String(day._id.month).padStart(2, '0')}-${String(day._id.day).padStart(2, '0')}`,
+                    count: day.count,
+                    positive: day.positive,
+                    negative: day.negative,
+                    neutral: day.neutral
+                }))
+
+            }
+        });
+
+    } catch (error: any) {
+        console.error("Get Weekly Summary Error:", error);
+
+        return response.status(500).json({
+            message: "An error occurred while getting weekly summary.",
+            error: true,
+            success: false,
+        });
+
     }
 }
