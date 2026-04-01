@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import Feedback from "../models/feedbackModel";
 import { analyzeFeedback } from "../services/geminiService";
+import mongoose from "mongoose";
 
 // submit feedback
 export const submitFeedback = async (request: Request, response: Response) => {
@@ -67,7 +68,7 @@ export const submitFeedback = async (request: Request, response: Response) => {
                     ai_tags: aiData.tags,
                     ai_processed: true,
                 },
-                { new: true } 
+                { returnDocument: "after" } 
             );
 
             return response.status(201).json({
@@ -150,15 +151,17 @@ export const listFeedbacks = async (request: Request, response: Response) => {
 //feedback get by id
 export const getFeedbackById = async (request: Request, response: Response) => {
     try {
-        const { id } = request.params;
+        const id= request.params.id as string;
+        
 
-        if(!id) {
+        if(!id || !mongoose.Types.ObjectId.isValid(id)) {
             return response.status(400).json({
                 message: "Feedback ID is required.",
                 error: true,
                 success: false,
             });
         }
+        
 
         const feedback = await Feedback.findById(id);
         if(!feedback) {
@@ -190,16 +193,17 @@ export const getFeedbackById = async (request: Request, response: Response) => {
 //update feedback status by id
 export const updateFeedbackStatusById = async (request: Request, response: Response) => {
     try {
-        const { id } = request.params;
+        const  id  = request.params.id as string;
         const { status } = request.body;
 
-        if(!id) {
+        if(!id || !mongoose.Types.ObjectId.isValid(id)) {
             return response.status(400).json({
                 message: "Feedback ID is required.",
                 error: true,
                 success: false,
             });
         }
+        
 
         const validStatuses = ["New", "In Review", "Resolved"];
         if (!status || !validStatuses.includes(status)) {
@@ -246,9 +250,9 @@ export const updateFeedbackStatusById = async (request: Request, response: Respo
 //delete feedback by id
 export const deleteFeedbackById = async (request: Request, response: Response) => {
     try {
-        const { id } = request.params;
+        const  id  = request.params.id as string;
 
-        if(!id) {
+        if(!id || !mongoose.Types.ObjectId.isValid(id)) {
             return response.status(400).json({
                 message: "Feedback ID is required.",
                 error: true,
@@ -333,9 +337,9 @@ export const getFeedbackSummary = async (request: Request, response: Response) =
 //retrigger AI analysis for a feedback by id
 export const retriggerAIById = async (request: Request, response: Response) => {
     try {
-        const { id } = request.params;
+        const  id  = request.params.id as string;
 
-        if(!id) {
+        if(!id || !mongoose.Types.ObjectId.isValid(id)) {
             return response.status(400).json({
                 message: "Feedback ID is required.",
                 error: true,
