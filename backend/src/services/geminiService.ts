@@ -1,68 +1,72 @@
-import axios from "axios";
+import { GoogleGenAI } from "@google/genai";
+import dotenv from "dotenv";
+dotenv.config();
 
-//create gemini response interface
-interface GeminiResponse {
-  category: string;
-  sentiment: "positive" | "neutral" | "negative";
+// Gemini response interface
+export interface GeminiResponse {
+  category: "Bug" | "Feature Request" | "Improvement" | "Other";
+  sentiment: "Positive" | "Neutral" | "Negative";
   priority_score: number;
   summary: string;
   tags: string[];
 }
 
+// Initialize SDK
+const ai = new GoogleGenAI({
+  apiKey: process.env.GEMINI_API_KEY,
+});
+
+/**
+ * Analyze feedback using Gemini AI
+ */
 export const analyzeFeedback = async (
   title: string,
   description: string
-): Promise<GeminiResponse | null> => {
-  
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) return null;
+): Promise<GeminiResponse> => {
+  const prompt = `
+Analyze this product feedback and return ONLY JSON (no markdown, no backticks, no explanation):
+
+{
+  "category": "Bug | Feature Request | Improvement | Other",
+  "sentiment": "Positive | Negative | Neutral",
+  "priority_score": number between 1 and 10,
+  "summary": "one short sentence summary",
+  "tags": ["tag1", "tag2"]
+}
+
+Title: ${title}
+Description: ${description}
+`;
 
   try {
-    const prompt = `
-    Analyze this product feedback and return ONLY valid JSON:
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: prompt,  // ✅ pass string directly, not array
+    });
 
-    {
-      "category": "Bug | Feature Request | UX | Performance | Other",
-      "sentiment": "positive | negative | neutral",
-      "priority_score": number (1-10),
-      "summary": "short summary",
-      "tags": ["tag1", "tag2"]
-    }
+    // ✅ correct way to get text from SDK response
+    const text = response.text ?? "";
 
-    Title: ${title}
-    Description: ${description}
-    `;
-
-    const response = await axios.post(
-      `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-      {
-        contents: [
-          {
-            parts: [{ text: prompt }]
-          }
-        ]
-      }
-    );
-
-    const text =
-      response.data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
-
-    // Clean markdown if exists
+    // Clean code fences if any
     const cleaned = text.replace(/```json|```/g, "").trim();
 
     const parsed: GeminiResponse = JSON.parse(cleaned);
-
     return parsed;
 
-  } catch (error) {
-    console.error("Gemini API Error:", error);
+  } catch (error: any) {
+    if (error?.status === 429) {
+      console.error("Gemini rate limit hit - using fallback");
+    } else {
+      console.error("Gemini API Error:", error.message || error);
+    }
 
+    // Fallback so feedback always saves to MongoDB
     return {
       category: "Other",
-      sentiment: "neutral",
+      sentiment: "Neutral",
       priority_score: 5,
       summary: "AI analysis failed",
-      tags: []
+      tags: [],
     };
   }
 };
