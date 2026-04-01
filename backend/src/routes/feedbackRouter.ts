@@ -1,12 +1,13 @@
 import express from "express";
 import { deleteFeedbackById, getFeedbackById, getFeedbackSummary, listFeedbacks, retriggerAIById, submitFeedback, updateFeedbackStatusById } from "../controllers/feedbackController";
 import { adminAuth } from "../middleware/admin";
+import { feedbackLimiter } from "../middleware/feedbackLimiter";
 
 const feedbackRouter = express.Router();
 
 feedbackRouter.get('/summary',adminAuth,getFeedbackSummary)
 
-feedbackRouter.post('/',submitFeedback);
+feedbackRouter.post('/',feedbackLimiter,submitFeedback);
 feedbackRouter.get('/',adminAuth,listFeedbacks);
 feedbackRouter.get('/:id',adminAuth,getFeedbackById);
 feedbackRouter.delete('/:id',adminAuth,deleteFeedbackById);
