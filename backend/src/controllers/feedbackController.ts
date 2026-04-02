@@ -287,7 +287,7 @@ export const deleteFeedbackById = async (request: Request, response: Response) =
 }
 
 //get feedback summary
-export const getFeedbackSummary = async (request: Request, response: Response) => {
+export const getFeedbackSummary = async (_request: Request, response: Response) => {
   try {
     
     const totalFeedbacks = await Feedback.countDocuments();
@@ -420,7 +420,7 @@ export const retriggerAIById = async (request: Request, response: Response) => {
 }
 
 //get weekly summary of feedbacks for last 7 days
-export const getWeeklySummary = async (request: Request, response: Response) => {
+export const getWeeklySummary = async (_request: Request, response: Response) => {
   try {
     const today = new Date();
     today.setHours(23, 59, 59, 999);
