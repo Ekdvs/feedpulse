@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import jwt from "jsonwebtoken";
 
-// Create admin user
+// Create admin    
 const ADMIN = {
   email: "admin@feedpulse.com",
   password: "admin123"
