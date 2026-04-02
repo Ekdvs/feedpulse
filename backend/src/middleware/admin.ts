@@ -44,11 +44,19 @@ export const adminAuth = (
     request.user = decoded;
 
     next();
-  } catch (error) {
+  } catch (error:any) {
+    if (error.name === "TokenExpiredError") {
+      return response.status(401).json({
+        success: false,
+        error: true,
+        message: "Token expired",
+      });
+    }
+
     return response.status(401).json({
       success: false,
       error: true,
-      message: "Invalid or expired token",
+      message: "Invalid token",
     });
   }
 };
