@@ -10,6 +10,16 @@ export interface GeminiResponse {
   summary: string;
   tags: string[];
 }
+// Weekly AI response interface
+export interface WeeklyTheme {
+  title: string;
+  description: string;
+}
+
+export interface WeeklyAIResponse {
+  themes: WeeklyTheme[];
+  overall_sentiment: string;
+}
 
 // Initialize SDK
 const ai = new GoogleGenAI({
@@ -67,6 +77,55 @@ Description: ${description}
       priority_score: 5,
       summary: "AI analysis failed",
       tags: [],
+    };
+  }
+};
+
+export const generateWeeklyThemes = async (
+  feedbacks: { title: string; description: string }[]
+): Promise<WeeklyAIResponse> => {
+
+  // ⚠️ limit input (VERY IMPORTANT)
+  const limitedFeedbacks = feedbacks.slice(0, 50);
+
+  const prompt = `
+Analyze the following product feedbacks from the last 7 days.
+
+Return ONLY JSON:
+
+{
+  "themes": [
+    { "title": "Theme name", "description": "Short explanation" }
+  ],
+  "overall_sentiment": "Short sentence"
+}
+
+Rules:
+- Give EXACTLY 3 themes
+- Keep descriptions short
+- Focus on patterns, not individual feedback
+
+Feedbacks:
+${limitedFeedbacks.map(f => `- ${f.title}: ${f.description}`).join("\n")}
+`;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: prompt,
+    });
+
+    const text = response.text ?? "";
+    const cleaned = text.replace(/```json|```/g, "").trim();
+
+    return JSON.parse(cleaned);
+
+  } catch (error: any) {
+    console.error("Weekly AI Error:", error.message || error);
+
+    return {
+      themes: [],
+      overall_sentiment: "Unavailable",
     };
   }
 };
