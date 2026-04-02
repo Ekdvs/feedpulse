@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import Feedback from "../models/feedbackModel";
-import { analyzeFeedback } from "../services/geminiService";
+import { analyzeFeedback, generateWeeklyThemes } from "../services/geminiService";
 import mongoose from "mongoose";
 
 // submit feedback
@@ -287,7 +287,7 @@ export const deleteFeedbackById = async (request: Request, response: Response) =
 }
 
 //get feedback summary
-export const getFeedbackSummary = async (request: Request, response: Response) => {
+export const getFeedbackSummary = async (_request: Request, response: Response) => {
   try {
     
     const totalFeedbacks = await Feedback.countDocuments();
@@ -420,83 +420,100 @@ export const retriggerAIById = async (request: Request, response: Response) => {
 }
 
 //get weekly summary of feedbacks for last 7 days
-export const getWeeklySummary = async (request: Request, response: Response) => {
-    try {
+export const getWeeklySummary = async (_request: Request, response: Response) => {
+  try {
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
 
-        const today = new Date();
-        today.setHours(23, 59, 59, 999);
-        const lastWeek = new Date();
-        lastWeek.setDate(today.getDate() - 6);
-        lastWeek.setHours(0, 0, 0, 0);
+    const lastWeek = new Date();
+    lastWeek.setDate(today.getDate() - 6);
+    lastWeek.setHours(0, 0, 0, 0);
 
-        const summary = await Feedback.aggregate([
-            {
-                $match: {
-                    createdAt: { $gte: lastWeek, $lte: today }
-                }
-            },
-            {
-                $group: {
-                    _id: {
-                        day: { $dayOfMonth: "$createdAt" },
-                        month: { $month: "$createdAt" },
-                        year: { $year: "$createdAt" }
-                    },
-                    count: { $sum: 1 },
-                    positive: {
-                        $sum: { $cond: [{ $eq: ["$ai_sentiment", "Positive"] }, 1, 0] }
-                    },
-                    negative: {
-                        $sum: { $cond: [{ $eq: ["$ai_sentiment", "Negative"] }, 1, 0] }
-                    },
-                    neutral: {
-                        $sum: { $cond: [{ $eq: ["$ai_sentiment", "Neutral"] }, 1, 0] }
-                    }
-                }
-            },
-            {
-                $sort: {
-                    "_id.year": 1,
-                    "_id.month": 1,
-                    "_id.day": 1
-                }
-            }
-        ]);
+    
+    const feedbacks = await Feedback.find({
+      createdAt: { $gte: lastWeek, $lte: today }
+    }).select("title description ai_sentiment");
 
-        const totalFeedbacks = summary.reduce((acc, day) => acc + day.count, 0);
-        const positive = summary.reduce((acc, day) => acc + day.positive, 0);
-        const negative = summary.reduce((acc, day) => acc + day.negative, 0);
-        const neutral = summary.reduce((acc, day) => acc + day.neutral, 0);
+    
+    const summary = await Feedback.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: lastWeek, $lte: today }
+        }
+      },
+      {
+        $group: {
+          _id: {
+            day: { $dayOfMonth: "$createdAt" },
+            month: { $month: "$createdAt" },
+            year: { $year: "$createdAt" }
+          },
+          count: { $sum: 1 },
+          positive: {
+            $sum: { $cond: [{ $eq: ["$ai_sentiment", "Positive"] }, 1, 0] }
+          },
+          negative: {
+            $sum: { $cond: [{ $eq: ["$ai_sentiment", "Negative"] }, 1, 0] }
+          },
+          neutral: {
+            $sum: { $cond: [{ $eq: ["$ai_sentiment", "Neutral"] }, 1, 0] }
+          }
+        }
+      },
+      {
+        $sort: {
+          "_id.year": 1,
+          "_id.month": 1,
+          "_id.day": 1
+        }
+      }
+    ]);
 
-        return response.status(200).json({
-            message: "Weekly summary retrieved successfully.",
-            error: false,
-            success: true,
-            data: {
-                totalFeedbacks,
-                positive,
-                negative,
-                neutral,
-                summary,
-                dailyBreakdown: summary.map(day => ({
-                    date: `${day._id.year}-${String(day._id.month).padStart(2, '0')}-${String(day._id.day).padStart(2, '0')}`,
-                    count: day.count,
-                    positive: day.positive,
-                    negative: day.negative,
-                    neutral: day.neutral
-                }))
+    
+    const totalFeedbacks = summary.reduce((acc, day) => acc + day.count, 0);
+    const positive = summary.reduce((acc, day) => acc + day.positive, 0);
+    const negative = summary.reduce((acc, day) => acc + day.negative, 0);
+    const neutral = summary.reduce((acc, day) => acc + day.neutral, 0);
 
-            }
-        });
+    
+    const aiThemes = await generateWeeklyThemes(
+      feedbacks.map(f => ({
+        title: f.title,
+        description: f.description
+      }))
+    );
 
-    } catch (error: any) {
-        console.error("Get Weekly Summary Error:", error);
+    
+    return response.status(200).json({
+      message: "Weekly summary + AI themes generated successfully",
+      success: true,
+      error: false,
+      data: {
+        totalFeedbacks,
+        sentiment: { positive, negative, neutral },
 
-        return response.status(500).json({
-            message: "An error occurred while getting weekly summary.",
-            error: true,
-            success: false,
-        });
+        summary,
+        dailyBreakdown: summary.map(day => ({
+          date: `${day._id.year}-${String(day._id.month).padStart(2, '0')}-${String(day._id.day).padStart(2, '0')}`,
+          count: day.count,
+          positive: day.positive,
+          negative: day.negative,
+          neutral: day.neutral
+        })),
 
-    }
-}
+        
+        topThemes: aiThemes.themes,
+        overallInsight: aiThemes.overall_sentiment
+      }
+    });
+
+  } catch (error: any) {
+    console.error("Get Weekly Summary Error:", error);
+
+    return response.status(500).json({
+      message: "An error occurred while getting weekly summary.",
+      error: true,
+      success: false,
+    });
+  }
+};

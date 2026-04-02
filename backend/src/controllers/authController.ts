@@ -1,11 +1,8 @@
 import { Request, Response } from "express";
 import jwt from "jsonwebtoken";
+import bcrypt from "bcrypt";
+import User from "../models/userModel";
 
-// Create admin user
-const ADMIN = {
-  email: "admin@feedpulse.com",
-  password: "admin123"
-};
 
 export const adminLogin = async (request: Request, response: Response) => {
   try {
@@ -20,21 +17,28 @@ export const adminLogin = async (request: Request, response: Response) => {
       });
     }
 
-    if (email !== ADMIN.email || password !== ADMIN.password) {
+    const user = await User.findOne({ email });
+
+    if (!user) {
       return response.status(401).json({
-        message: "Invalid Email or Password",
+        message: "Invalid email or password",
         error: true,
         success: false
       });
     }
 
-    // Create a token for admin user
-    const token = jwt.sign(
-      { email: ADMIN.email },
-      process.env.JWT_SECRET_KEY as string,
-      { expiresIn: "1h" }
-    );
+    const isMatch = await bcrypt.compare(password, user.password);
 
+    if (!isMatch) {
+      return response.status(401).json({
+        message: "Invalid email or password",
+        error: true,
+        success: false
+      });
+    }
+    const token = jwt.sign({ userId: user._id, role: user.role }, process.env.JWT_SECRET!, {
+      expiresIn: "1d",
+    });
     return response.status(200).json({
       message: "Admin Login Successful",
       error: false,
