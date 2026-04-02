@@ -38,6 +38,8 @@ export default function DashboardSummary() {
     ],
   };
 
+  
+
   // Bar chart data for Sentiments
   const sentimentData = {
     labels: summary.chartData.sentiments.labels,

@@ -209,6 +209,9 @@ export default function AdminFeedbacks() {
             <p className="text-gray-600 mb-1">
               <strong>Priority:</strong> {f.ai_priority || "-"}
             </p>
+            <p className="text-gray-600 mb-1">
+              <strong>sentiment badge:</strong> {f.ai_sentiment || "-"}
+            </p>
 
             <select
               value={f.status}
@@ -219,8 +222,11 @@ export default function AdminFeedbacks() {
               <option value="In Review">In Review</option>
               <option value="Resolved">Resolved</option>
             </select>
+            <p className="text-gray-600 mb-1">
+              <strong>Date:</strong> {f.createdAt || "-"}
+            </p>
 
-            <div className="flex gap-2 mt-2">
+            <div className="flex gap-2 mt-2 ">
               <button
                 onClick={() => viewFeedbackDetails(f._id)}
                 className="bg-blue-500 text-white px-3 py-1 rounded text-sm flex items-center gap-1"
