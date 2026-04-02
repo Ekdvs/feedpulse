@@ -1,48 +1,54 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 
-interface JwtPayload {
-  email: string;
+
+interface AuthRequest extends Request {
+  user?: {
+    id: string;
+    role: string;
+  };
 }
 
-export const adminAuth = (request: any, response: Response, next: NextFunction) => {
+export const adminAuth = (
+  request: AuthRequest,
+  response: Response,
+  next: NextFunction
+) => {
   try {
-    // Get token from header
-    const authHeader = request.headers.authorization;
-    const token = authHeader && authHeader.startsWith("Bearer ")
-      ? authHeader.split(" ")[1]
-      : null;
+    
+    const token = request.headers.authorization?.split(" ")[1];
 
     if (!token) {
       return response.status(401).json({
-        message: "Unauthorized, no token provided",
+        success: false,
         error: true,
-        success: false
+        message: "No token provided",
       });
     }
 
-    // Verify token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY as string) as JwtPayload;
+    
+    const decoded = jwt.verify(
+      token,
+      process.env.JWT_SECRET_KEY as string
+    ) as { id: string; role: string };
 
-    // Only admin email allowed
-    if (decoded.email !== "admin@feedpulse.com") {
-      return response.status(401).json({
-        message: "Unauthorized, invalid admin",
+    
+    if (decoded.role !== "admin") {
+      return response.status(403).json({
+        success: false,
         error: true,
-        success: false
+        message: "Forbidden - Admin only",
       });
     }
 
-    // Attach admin info to request (optional)
-    request.user = { email: decoded.email };
+    request.user = decoded;
 
     next();
-  } catch (error: any) {
-    console.log(error.message);
+  } catch (error) {
     return response.status(401).json({
-      message: "Unauthorized, invalid token",
+      success: false,
       error: true,
-      success: false
+      message: "Invalid or expired token",
     });
   }
 };
