@@ -3,6 +3,7 @@ version: "3.9"
 services:
   backend:
     build: ./backend
+    image: ekdvsampath/feedpulse-backend:latest
     container_name: feedpulse_backend
     ports:
       - "8080:8080"
@@ -14,6 +15,7 @@ services:
 
   frontend:
     build: ./frontend
+    image: ekdvsampath/feedpulse-frontend:latest
     container_name: feedpulse_frontend
     ports:
       - "3000:3000"
