@@ -36,7 +36,7 @@ export const adminLogin = async (request: Request, response: Response) => {
         success: false
       });
     }
-    const token = jwt.sign({ userId: user._id, role: user.role }, process.env.JWT_SECRET!, {
+    const token = jwt.sign({ userId: user._id, role: user.role }, process.env.JWT_SECRET_KEY!, {
       expiresIn: "1d",
     });
     return response.status(200).json({
